@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hzmc.vm.mapper.VersionMapper">
+	<resultMap type="com.hzmc.vm.model.Version" id="versionResultMap">
+		<id column="ver_id" property="verId" />
+		<result column="ver_name" property="verName" />
+		<result column="ver_num" property="verNum" />
+		<result column="update_time" property="updateTime" />
+		<result column="ver_content" property="verContent" />
+		<result column="size" property="size" />
+		<result column="ver_address" property="verAddress" />
+		<result column="comments" property="comments" />
+		<result column="bra_id" property="braId" />
+		<result column="status" property="status" />
+		<result column="user_id" property="userId" />
+		<association property="user" javaType="com.hzmc.vm.model.User">
+			<id column="user_id" property="userId" />
+			<result column="name" property="name" />
+			<result column="username" property="username" />
+			<result column="password" property="password" />
+		</association>
+	</resultMap>
+
+	<!-- 查询最新版本根据分支ID -->
+	<select id="getNewestVersion" parameterType="int" resultMap="versionResultMap">
+		SELECT * FROM vm_version where UPDATE_TIME=(SELECT max(UPDATE_TIME)
+		FROM version_manager.vm_version where bra_id=#{braId} and status=0 )
+	</select>
+	<!-- 查询最版本根据版本ID -->
+
+	<select id="getVersionById" parameterType="int" resultMap="versionResultMap">
+		SELECT * FROM vm_version where ver_id=#{verId}
+	</select>
+
+	<!-- 查询所有已删除的版本 -->
+	<select id="getVersionDelete" resultMap="versionResultMap">
+		SELECT * FROM vm_version
+		where status=1
+	</select>
+
+	<!-- 查询所有版本根据分支ID -->
+
+	<select id="getVersionByBraId" parameterType="int" resultMap="versionResultMap">
+		SELECT * FROM vm_version v ,vm_user u where v.bra_id=#{braId} and
+		v.status=0
+	</select>
+
+	<!-- 查询版本分页 -->
+	<select id="getVersionByPage" parameterType="com.hzmc.vm.util.Page"
+		resultMap="versionResultMap">
+		SELECT * FROM vm_version v ,vm_user u
+		<where>
+			<if test="1==1">
+				v.USER_ID=u.USER_ID and status='0'
+			</if>
+			<if test="searchParameters.braId!=0">
+				and v.BRA_ID=#{searchParameters.braId}
+			</if>
+			<if test="searchParameters.verNum!=null">
+				and v.ver_num like'%${searchParameters.verNum}%'
+			</if>
+			<if test="searchParameters.verName!=null">
+				and v.ver_name like '%${searchParameters.verName}%'
+			</if>
+			<if test="searchParameters.name!=null">
+				and u.name like '%${searchParameters.name}%'
+			</if>
+		</where>
+		order by v.update_time desc LIMIT #{limitNumber},#{pageSize}
+	</select>
+	<!-- 获取总页数 -->
+	<select id="getVersionCount" parameterType="com.hzmc.vm.util.Page"
+		resultType="int">
+		SELECT count(*) FROM vm_version v
+		<where>
+			<if test="1==1">
+				status='0'
+			</if>
+			<if test="searchParameters.braId!=0">
+				and v.BRA_ID=#{searchParameters.braId}
+			</if>
+			<if test="searchParameters.verNum!=null">
+				and v.ver_num like'%${searchParameters.verNum}%'
+			</if>
+			<if test="searchParameters.verName!=null">
+				and v.ver_name like '%${searchParameters.verName}%'
+			</if>
+			<if test="searchParameters.name!=null">
+				and u.name like '%${searchParameters.name}%'
+			</if>
+		</where>
+
+	</select>
+
+	<!-- 增加版本 -->
+	<insert id="saveVersion" parameterType="com.hzmc.vm.model.Version"
+		useGeneratedKeys="true" keyProperty="verId">
+		insert into vm_version
+		(ver_name,ver_num,update_time,ver_content,size,ver_address,comments,bra_id,status,user_id)
+		value
+		(#{verName},#{verNum},now(),#{verContent},#{size},#{verAddress},#{comments},#{braId},#{status},#{userId})
+
+		<!-- <selectKey keyProperty="verId" order="AFTER" resultType="java.lang.Integer"> 
+			select last_insert_id() </selectKey> -->
+	</insert>
+
+	<!-- 存储版本关系 -->
+	<insert id="saveVerRelation" parameterType="com.hzmc.vm.model.Relation">
+		insert into
+		vm_relation (CHILD_ID, FATHER_ID) value
+		(#{childId},#{fatherId})
+	</insert>
+
+
+
+	<!-- 删除项目 改变状态为1 修改文件名为删除-->
+	<update id="deleteVersion" parameterType="com.hzmc.vm.model.Version">
+		update vm_version set
+		status='1',ver_address=#{verAddress} where ver_id=#{verId}
+	</update>
+
+	<!-- 物理删除通过ID -->
+	<delete id="delete" parameterType="int">
+		delete from vm_version where
+		ver_id=#{verId}
+	</delete>
+
+	<!-- 物理删除通过ID -->
+	<delete id="deleteRelation" parameterType="int">
+		delete from
+		vm_relation where FATHER_ID=#{fatherId}
+	</delete>
+
+</mapper>
